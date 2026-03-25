@@ -1,13 +1,5 @@
 package com.finflow.application.service;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-
-import com.finflow.application.client.DocumentServiceClient;
 import com.finflow.application.config.DecisionEventPublisher;
 import com.finflow.application.dto.AdminDecisionRequest;
 import com.finflow.application.dto.CreateDraftRequest;
@@ -16,115 +8,163 @@ import com.finflow.application.entity.LoanApplicationStatus;
 import com.finflow.application.entity.LoanStatusHistory;
 import com.finflow.application.repository.LoanApplicationRepository;
 import com.finflow.application.repository.StatusHistoryRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class LoanApplicationService {
 
- private final LoanApplicationRepository repo;
- private final StatusHistoryRepository historyRepo;
- private final DocumentServiceClient docClient;
- private final DecisionEventPublisher publisher;
+    private final LoanApplicationRepository repo;
+    private final StatusHistoryRepository historyRepo;
+    private final DecisionEventPublisher publisher;
 
- public LoanApplicationService(
-  LoanApplicationRepository repo,
-  StatusHistoryRepository historyRepo,
-  DocumentServiceClient docClient,
-  DecisionEventPublisher publisher) {
+    public LoanApplicationService(
+            LoanApplicationRepository repo,
+            StatusHistoryRepository historyRepo,
+            DecisionEventPublisher publisher
+    ) {
+        this.repo = repo;
+        this.historyRepo = historyRepo;
+        this.publisher = publisher;
+    }
 
-  this.repo = repo;
-  this.historyRepo = historyRepo;
-  this.docClient = docClient;
-  this.publisher = publisher;
- }
+    @Cacheable(value = "dashboard", key = "#email")
+    public List<LoanApplication> getUserApps(String email) {
+        return repo.findByUserEmail(email);
+    }
 
- @Cacheable(value="dashboard", key="#email")
- public List<LoanApplication> getUserApps(String email){
-  return repo.findByUserEmail(email);
- }
+    @CacheEvict(value = "dashboard", key = "#email")
+    public LoanApplication createDraft(String email, CreateDraftRequest req) {
 
- public LoanApplication createDraft(String email, CreateDraftRequest req){
-  LoanApplication app = new LoanApplication();
-  app.setUserEmail(email);
-  app.setAmount(req.getAmount());
-  app.setTenureMonths(req.getTenureMonths());
-  app.setPurpose(req.getPurpose());
-  app.setStatus(LoanApplicationStatus.DRAFT);
-  app.setCreatedAt(LocalDateTime.now());
+        LoanApplication app = new LoanApplication();
+        app.setUserEmail(email);
+        app.setAmount(req.getAmount());
+        app.setTenureMonths(req.getTenureMonths());
+        app.setPurpose(req.getPurpose());
+        app.setStatus(LoanApplicationStatus.DRAFT);
+        app.setCreatedAt(LocalDateTime.now());
 
-  repo.save(app);
-  saveHistory(app.getId(), LoanApplicationStatus.DRAFT,"Draft created");
-  return app;
- }
+        repo.save(app);
+        saveHistory(app.getId(), LoanApplicationStatus.DRAFT, "Draft created");
 
- public LoanApplication submit(UUID id,String email){
+        return app;
+    }
 
-  LoanApplication app = repo.findById(id).orElseThrow();
+    @CacheEvict(value = "dashboard", key = "#email")
+    public LoanApplication submit(UUID id, String email) {
 
-  if(!app.getUserEmail().equals(email))
-   throw new RuntimeException("Unauthorized");
+        LoanApplication app = repo.findById(id).orElseThrow();
 
-  if(app.getStatus()!=LoanApplicationStatus.DRAFT)
-   throw new RuntimeException("Invalid state");
+        if (!app.getUserEmail().equals(email))
+            throw new RuntimeException("Unauthorized");
 
-  app.setStatus(LoanApplicationStatus.DOCS_PENDING);
-  app.setSubmittedAt(LocalDateTime.now());
+        validateTransition(app.getStatus(), LoanApplicationStatus.SUBMITTED);
 
-  repo.save(app);
-  saveHistory(id,LoanApplicationStatus.DOCS_PENDING,"Submitted");
+        app.setStatus(LoanApplicationStatus.SUBMITTED);
+        app.setSubmittedAt(LocalDateTime.now());
 
-  return app;
- }
+        repo.save(app);
 
- public LoanApplication moveToReview(UUID id){
-	 
-	 boolean docsUploaded = true; // TEMP MOCK
+        saveHistory(id, LoanApplicationStatus.SUBMITTED, "Application submitted");
 
-	 if(!docsUploaded)
-	  throw new RuntimeException("Docs missing");
-//  if(!docClient.documentsUploaded(id))
-//   throw new RuntimeException("Docs missing");
+        return app;
+    }
 
-  LoanApplication app = repo.findById(id).orElseThrow();
+    // 🔥 CALLED BY DOCUMENT SERVICE EVENT (later)
+    @CacheEvict(value = "dashboard", allEntries = true)
+    public LoanApplication markDocsUploaded(UUID id) {
 
-  if(app.getStatus()!=LoanApplicationStatus.DOCS_PENDING)
-   throw new RuntimeException("Invalid state");
+        LoanApplication app = repo.findById(id).orElseThrow();
 
-  app.setStatus(LoanApplicationStatus.UNDER_REVIEW);
-  repo.save(app);
+        validateTransition(app.getStatus(), LoanApplicationStatus.DOCS_UPLOADED);
 
-  saveHistory(id,LoanApplicationStatus.UNDER_REVIEW,"Admin verified docs");
+        app.setStatus(LoanApplicationStatus.DOCS_UPLOADED);
+        repo.save(app);
 
-  return app;
- }
+        saveHistory(id, LoanApplicationStatus.DOCS_UPLOADED, "Documents uploaded");
 
- public LoanApplication decision(UUID id, AdminDecisionRequest req){
+        return app;
+    }
 
-  LoanApplication app = repo.findById(id).orElseThrow();
+    @CacheEvict(value = "dashboard", allEntries = true)
+    public LoanApplication markUnderVerification(UUID id) {
 
-  if(app.getStatus()!=LoanApplicationStatus.UNDER_REVIEW)
-   throw new RuntimeException("Invalid state");
+        LoanApplication app = repo.findById(id).orElseThrow();
 
-  app.setStatus(req.getStatus());
-  app.setDecisionAt(LocalDateTime.now());
+        validateTransition(app.getStatus(), LoanApplicationStatus.UNDER_VERIFICATION);
 
-  repo.save(app);
+        app.setStatus(LoanApplicationStatus.UNDER_VERIFICATION);
+        repo.save(app);
 
-  saveHistory(id,req.getStatus(),req.getRemark());
-  publisher.publishDecision(app,req.getRemark());
+        saveHistory(id, LoanApplicationStatus.UNDER_VERIFICATION, "Admin started verification");
 
-  return app;
- }
+        return app;
+    }
 
- private void saveHistory(UUID id, LoanApplicationStatus status, String remark){
+    @CacheEvict(value = "dashboard", allEntries = true)
+    public LoanApplication moveToReview(UUID id) {
 
-  LoanStatusHistory h = new LoanStatusHistory();
-  h.setApplicationId(id);
-  h.setStatus(status);
-  h.setRemark(remark);
-  h.setTimestamp(LocalDateTime.now());
+        LoanApplication app = repo.findById(id).orElseThrow();
 
-  historyRepo.save(h);
- }
+        validateTransition(app.getStatus(), LoanApplicationStatus.UNDER_REVIEW);
 
+        app.setStatus(LoanApplicationStatus.UNDER_REVIEW);
+        repo.save(app);
+
+        saveHistory(id, LoanApplicationStatus.UNDER_REVIEW, "Verification completed");
+
+        return app;
+    }
+
+    @CacheEvict(value = "dashboard", allEntries = true)
+    public LoanApplication decision(UUID id, AdminDecisionRequest req) {
+
+        LoanApplication app = repo.findById(id).orElseThrow();
+
+        if (req.getStatus() == null)
+            throw new RuntimeException("Decision status required");
+
+        validateTransition(app.getStatus(), req.getStatus());
+
+        app.setStatus(req.getStatus());
+        app.setDecisionAt(LocalDateTime.now());
+        repo.save(app);
+
+        saveHistory(id, req.getStatus(), req.getRemark());
+        publisher.publishDecision(app, req.getRemark());
+
+        return app;
+    }
+
+    private void validateTransition(LoanApplicationStatus current, LoanApplicationStatus target) {
+
+        if (current == LoanApplicationStatus.DRAFT && target == LoanApplicationStatus.SUBMITTED) return;
+
+        if (current == LoanApplicationStatus.SUBMITTED && target == LoanApplicationStatus.DOCS_UPLOADED) return;
+
+        if (current == LoanApplicationStatus.DOCS_UPLOADED && target == LoanApplicationStatus.UNDER_VERIFICATION) return;
+
+        if (current == LoanApplicationStatus.UNDER_VERIFICATION && target == LoanApplicationStatus.UNDER_REVIEW) return;
+
+        if (current == LoanApplicationStatus.UNDER_REVIEW &&
+                (target == LoanApplicationStatus.APPROVED || target == LoanApplicationStatus.REJECTED)) return;
+
+        throw new RuntimeException("Invalid state transition");
+    }
+
+    private void saveHistory(UUID id, LoanApplicationStatus status, String remark) {
+
+        LoanStatusHistory h = new LoanStatusHistory();
+        h.setApplicationId(id);
+        h.setStatus(status);
+        h.setRemark(remark);
+        h.setTimestamp(LocalDateTime.now());
+
+        historyRepo.save(h);
+    }
 }
