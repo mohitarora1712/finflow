@@ -1,0 +1,111 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-shell,
+.shell-container {
+  min-height: 100vh;
+}
+
+.app-shell--public {
+  background:
+    radial-gradient(circle at top left, rgba(220, 247, 238, 0.9), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(255, 220, 184, 0.7), transparent 28%),
+    linear-gradient(180deg, #f7f2ea 0%, #fffdfa 100%);
+}
+
+.shell-sidenav {
+  width: 272px;
+  border-right: 1px solid rgba(15, 41, 51, 0.08);
+  background: linear-gradient(180deg, #0f2933 0%, #173d49 100%);
+  color: #f7faf9;
+  padding: 1rem 0.75rem;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.75rem 0.75rem 1rem;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffc775 0%, #ff8a5b 100%);
+  color: #102b35;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.brand-title,
+.toolbar-title {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+}
+
+.brand-subtitle,
+.toolbar-subtitle {
+  margin: 0.15rem 0 0;
+  opacity: 0.72;
+  font-size: 0.9rem;
+}
+
+.shell-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 1rem;
+  min-height: 76px;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid rgba(15, 41, 51, 0.08);
+  background: rgba(255, 253, 250, 0.9);
+  backdrop-filter: blur(14px);
+}
+
+.toolbar-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.shell-content {
+  background:
+    radial-gradient(circle at top right, rgba(180, 220, 206, 0.3), transparent 22%),
+    linear-gradient(180deg, #fffdfa 0%, #f6f1ea 100%);
+}
+
+.page-body {
+  padding: 1.5rem;
+}
+
+a.active-link {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px;
+}
+
+.shell-sidenav [mat-list-item],
+.shell-sidenav [mat-list-item] .mdc-list-item__primary-text,
+.shell-sidenav [mat-list-item] mat-icon {
+  color: #f7faf9 !important;
+}
+
+mat-icon {
+  font-family: 'Material Symbols Outlined';
+}
+
+@media (max-width: 959px) {
+  .page-body {
+    padding: 1rem;
+  }
+}

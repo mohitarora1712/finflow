@@ -1,0 +1,63 @@
+<div class="app-shell" [class.app-shell--public]="!(isAuthenticated$ | async)">
+  @if (isAuthenticated$ | async) {
+    <mat-sidenav-container class="shell-container">
+      <mat-sidenav
+        #drawer
+        class="shell-sidenav"
+        [mode]="(isHandset$ | async) ? 'over' : 'side'"
+        [opened]="!(isHandset$ | async)"
+      >
+        <div class="brand-block">
+          <span class="brand-mark">FF</span>
+          <div>
+            <p class="brand-title">FinFlow</p>
+            <p class="brand-subtitle">Microservice Console</p>
+          </div>
+        </div>
+
+        <mat-nav-list>
+          @for (item of navigationItems$ | async; track item.route) {
+            <a
+              mat-list-item
+              [routerLink]="item.route"
+              routerLinkActive="active-link"
+              [routerLinkActiveOptions]="{ exact: true }"
+              (click)="closeDrawerOnHandset(drawer)"
+            >
+              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+              <span matListItemTitle>{{ item.label }}</span>
+            </a>
+          }
+        </mat-nav-list>
+      </mat-sidenav>
+
+      <mat-sidenav-content class="shell-content">
+        <mat-toolbar class="shell-toolbar">
+          @if (isHandset$ | async) {
+            <button mat-icon-button type="button" (click)="drawer.toggle()" aria-label="Open navigation">
+              <mat-icon>menu</mat-icon>
+            </button>
+          }
+
+          <div class="toolbar-copy">
+            <p class="toolbar-title">FinFlow Frontend</p>
+            <p class="toolbar-subtitle">{{ (userEmail$ | async) || 'Secure workspace' }}</p>
+          </div>
+
+          <span class="toolbar-spacer"></span>
+
+          <button mat-stroked-button type="button" (click)="logout()">
+            <mat-icon>logout</mat-icon>
+            Logout
+          </button>
+        </mat-toolbar>
+
+        <main class="page-body">
+          <router-outlet />
+        </main>
+      </mat-sidenav-content>
+    </mat-sidenav-container>
+  } @else {
+    <router-outlet />
+  }
+</div>
