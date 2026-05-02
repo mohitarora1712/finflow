@@ -4,11 +4,11 @@ import io.jsonwebtoken.Claims;
 import org.springframework.cloud.gateway.filter.*;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-
 import reactor.core.publisher.Mono;
 
 @Component
@@ -25,8 +25,16 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         String path = exchange.getRequest().getURI().getPath();
 
-        // public endpoints
-        if (path.startsWith("/auth")) {
+        // PUBLIC ENDPOINTS
+        if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS ||
+            path.startsWith("/auth/login") ||
+            path.startsWith("/auth/signup") ||
+            path.contains("/v3/api-docs") ||
+            path.contains("/swagger-ui") ||
+            path.contains("/swagger-config") ||
+            path.contains("/webjars") ||
+            path.startsWith("/actuator")) {
+
             return chain.filter(exchange);
         }
 
@@ -47,15 +55,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         String email = claims.getSubject();
         String role = claims.get("role", String.class);
 
-        ServerHttpRequest mutatedRequest = exchange.getRequest()
+        ServerHttpRequest mutated = exchange.getRequest()
                 .mutate()
                 .header("X-User-Email", email)
                 .header("X-User-Role", role)
                 .build();
 
-        return chain.filter(
-                exchange.mutate().request(mutatedRequest).build()
-        );
+        return chain.filter(exchange.mutate().request(mutated).build());
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange) {

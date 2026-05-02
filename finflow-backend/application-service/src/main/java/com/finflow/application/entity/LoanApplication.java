@@ -24,6 +24,18 @@ public class LoanApplication implements Serializable {
 	private Double amount;
 	private Integer tenureMonths;
 	private String purpose;
+	
+	
+	// 👤 PERSONAL
+	private String fullName;
+	private String phone;
+
+	// 💼 EMPLOYMENT
+	private String employmentType;
+	private String companyName;
+
+	// 💰 FINANCIAL
+	private Double income;
 
 	@Enumerated(EnumType.STRING)
 	private LoanApplicationStatus status;
@@ -32,6 +44,8 @@ public class LoanApplication implements Serializable {
 	private LocalDateTime updatedAt;
 	private LocalDateTime submittedAt;
 	private LocalDateTime decisionAt;
+
+	private String remark;
 
 	public LoanApplication() {
 	}
@@ -116,6 +130,56 @@ public class LoanApplication implements Serializable {
 		this.decisionAt = decisionAt;
 	}
 
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getEmploymentType() {
+		return employmentType;
+	}
+
+	public void setEmploymentType(String employmentType) {
+		this.employmentType = employmentType;
+	}
+
+	public String getCompanyName() {
+		return companyName;
+	}
+
+	public void setCompanyName(String companyName) {
+		this.companyName = companyName;
+	}
+
+	public Double getIncome() {
+		return income;
+	}
+
+	public void setIncome(Double income) {
+		this.income = income;
+	}
+
+	public String getRemark() {
+		return remark;
+	}
+
+	public void setRemark(String remark) {
+		this.remark = remark;
+	}
+
 	// ALL getters setters manually
+	
+	
 
 }

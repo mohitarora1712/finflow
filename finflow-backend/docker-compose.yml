@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+
+  # ───────── DATABASE ─────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: finflow-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_MULTIPLE_DATABASES: auth-service_db,application_service_db,document_service_db,admin_service_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ finflow ]
+
+  # ───────── RABBITMQ ─────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: finflow-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ finflow ]
+
+  # ───────── REDIS ─────────
+  redis:
+    image: redis:7-alpine
+    container_name: finflow-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [ finflow ]
+
+  # ───────── EUREKA ─────────
+  eureka-server:
+    build: ./eureka-server
+    container_name: finflow-eureka
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [ finflow ]
+
+  # ───────── CONFIG SERVER ─────────
+  config-server:
+    build: ./config-server
+    container_name: finflow-config
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [ finflow ]
+
+  # ───────── AUTH SERVICE ─────────
+  auth-service:
+    build: ./auth-service
+    container_name: finflow-auth
+    ports:
+      - "8081:8081"
+    environment:
+      JWT_SECRET: myverysecuresecretkeymyverysecuresecretkey
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks: [ finflow ]
+
+  # ───────── APPLICATION SERVICE ─────────
+  application-service:
+    build: ./application-service
+    container_name: finflow-application
+    ports:
+      - "8082:8082"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks: [ finflow ]
+
+  # ───────── DOCUMENT SERVICE ─────────
+  document-service:
+    build: ./document-service
+    container_name: finflow-document
+    ports:
+      - "8083:8083"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    volumes:
+      - ./document-uploads:/app/uploads
+    networks: [ finflow ]
+
+  # ───────── ADMIN SERVICE ─────────
+  admin-service:
+    build: ./admin-service
+    container_name: finflow-admin
+    ports:
+      - "8084:8084"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks: [ finflow ]
+
+  # ───────── API GATEWAY ─────────
+  api-gateway:
+    build: ./api-gateway
+    container_name: finflow-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: myverysecuresecretkeymyverysecuresecretkey
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks: [ finflow ]
+
+  # ───────── ZIPKIN ─────────
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: finflow-zipkin
+    ports:
+      - "9411:9411"
+    networks: [ finflow ]
+
+  # ───────── SONARQUBE ─────────
+  sonarqube:
+    image: sonarqube:community
+    container_name: finflow-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    networks: [ finflow ]
+
+networks:
+  finflow:
+    driver: bridge

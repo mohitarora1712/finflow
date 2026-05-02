@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: admin-service
+  config:
+    import: optional:configserver:http://config-server:8888
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      applicationService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      documentService:
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        permittedNumberOfCallsInHalfOpenState: 2
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50

@@ -3,4 +3,56 @@ spring:
     name: api-gateway
 
   config:
-    import: "optional:configserver:http://localhost:8888"
+    import: "configserver:http://config-server:8888"
+
+  codec:
+    max-in-memory-size: 5MB
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origins:
+                  - "http://localhost:4200"
+                  - "http://127.0.0.1:4200"
+                allowed-methods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowed-headers:
+                  - "*"
+                exposed-headers:
+                  - Authorization
+                  - Content-Disposition
+                allow-credentials: true
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth/**
+              filters:
+                - StripPrefix=1
+            - id: application-service
+              uri: lb://application-service
+              predicates:
+                - Path=/applications/**
+              filters:
+                - StripPrefix=1
+            - id: document-service
+              uri: lb://document-service
+              predicates:
+                - Path=/documents/**
+              filters:
+                - StripPrefix=1
+            - id: admin-service
+              uri: lb://admin-service
+              predicates:
+                - Path=/admin/**
+              filters:
+                - StripPrefix=1

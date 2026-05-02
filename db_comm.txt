@@ -1,0 +1,15 @@
+INSERT INTO users (email, password, enabled, created_at)
+VALUES (
+  'test@gmail.com',
+  '$2a$12$OrJj3b7ZTX9xeQPcR76c5OdQOIXJAUfIStg5kE6D/L8BDzHOLZxsi',
+  true,
+  NOW()
+);
+
+INSERT INTO users (email, password, enabled, created_at)
+VALUES ('admin@gmail.com',
+        '$2a$12$4roZXZmE11v6xfNGgqcXZOOvOpdoIW0X71ph3ZsAyLkkBSvbN77g.',
+        true,
+        NOW());
+INSERT INTO user_roles (user_id, role_id)
+VALUES (1, 2);

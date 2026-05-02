@@ -1,0 +1,47 @@
+name: FinFlow CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 25
+      uses: actions/setup-java@v4
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Build and Test Application Service
+      run: |
+        cd finflow-backend/application-service
+        mvn clean test jacoco:report
+        
+    - name: Build and Test Document Service
+      run: |
+        cd finflow-backend/document-service
+        mvn clean test jacoco:report
+
+    - name: Build and Test Auth Service
+      run: |
+        cd finflow-backend/auth-service
+        mvn clean test jacoco:report
+
+    - name: Build and Test Admin Service
+      run: |
+        cd finflow-backend/admin-service
+        mvn clean test jacoco:report
+
+    - name: Upload Test Coverage Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: jacoco-reports
+        path: "**/target/site/jacoco/"

@@ -2,6 +2,7 @@ package com.lpu.gateway.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -9,19 +10,12 @@ import javax.crypto.SecretKey;
 @Component
 public class JwtUtil {
 
-    private final SecretKey key = Keys.hmacShaKeyFor(
-            "myverysecuresecretkeymyverysecuresecretkey".getBytes()
-    );
+    private final SecretKey key;
 
-    public String extractEmail(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+    public JwtUtil(@Value("${jwt.secret}") String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
     }
-    
+
     public Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)

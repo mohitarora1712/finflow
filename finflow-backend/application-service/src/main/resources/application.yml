@@ -2,4 +2,12 @@ spring:
   application:
     name: application-service
   config:
-    import: optional:configserver:http://localhost:8888
+    import: optional:configserver:http://config-server:8888
+  rabbitmq:
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 3000ms
+          max-attempts: 3
+          multiplier: 2.0

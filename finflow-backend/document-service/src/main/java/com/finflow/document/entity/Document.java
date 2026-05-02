@@ -25,6 +25,7 @@ public class Document implements Serializable {
 
  private String docType;
  private String filePath;
+ private String originalFileName;
 
  @Enumerated(EnumType.STRING)
  private DocumentStatus status;
@@ -64,6 +65,14 @@ public class Document implements Serializable {
 
  public void setFilePath(String filePath) {
 	this.filePath = filePath;
+ }
+
+ public String getOriginalFileName() {
+	return originalFileName;
+ }
+
+ public void setOriginalFileName(String originalFileName) {
+	this.originalFileName = originalFileName;
  }
 
  public DocumentStatus getStatus() {
